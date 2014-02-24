@@ -7,5 +7,9 @@
     <string name="title_loop_delay">Loop Delay (msec)</string>
     <string name="summary_loop_delay">How long to pause between playbacks of a drill in milliseconds.</string>
     <string name="action_create">Create</string>
+    <string name="loop_button_text_on">Pause</string>
+    <string name="loop_button_text_off">Play</string>
+    <string name="dummy_data_song">Comfortably Numb</string>
+    <string name="dummy_data_drill">First Solo</string>
 
 </resources>

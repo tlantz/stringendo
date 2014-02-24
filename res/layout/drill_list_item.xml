@@ -15,7 +15,7 @@
         android:layout_height="wrap_content"
         android:layout_alignParentLeft="true"
         android:layout_alignParentTop="true"
-        android:text="Comfortably Numb"
+        android:text="@string/dummy_data_song"
         android:textAppearance="?android:textAppearanceMedium"/>
     
 	<TextView
@@ -23,9 +23,9 @@
 	    android:layout_width="wrap_content"
 	    android:layout_height="wrap_content"
         android:layout_alignBaseline="@id/drill_list_item_song"
-        android:layout_alignBottom="@+id/drill_list_item_song"
+        android:layout_alignBottom="@id/drill_list_item_song"
         android:layout_alignParentRight="true"
-        android:text="First Solo"
+        android:text="@string/dummy_data_drill"
         android:textAppearance="?android:textAppearanceMedium"
         android:textColor="@android:color/secondary_text_light"/>
 
