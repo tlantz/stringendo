@@ -92,6 +92,7 @@ public final class DrillTrackProvider extends ContentProvider {
 	public Cursor query(Uri uri, String[] projection, String selection, 
 			String[] selectionArgs, String sortOrder) {
 		final SQLiteQueryBuilder qb = new SQLiteQueryBuilder();
+		qb.setTables(DrillTrackContract.TABLE);
 		switch (sMatcher.match(uri)) {
 		case DrillTrackContract.MATCH_CODE_DIR:
 			break;
