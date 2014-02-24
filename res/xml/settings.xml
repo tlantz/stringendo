@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" >
+
+    <EditTextPreference 
+        android:defaultValue="@integer/preference_default_loop_delay_msec"
+        android:key="loopDelayMSec" 
+        android:summary="@string/summary_loop_delay" 
+        android:title="@string/title_loop_delay"
+        android:inputType="number"
+        android:digits="0123456789"/>
+
+</PreferenceScreen>

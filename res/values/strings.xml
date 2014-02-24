@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Stringendo</string>
+    <string name="action_settings">Settings</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="title_loop_delay">Loop Delay (msec)</string>
+    <string name="summary_loop_delay">How long to pause between playbacks of a drill in milliseconds.</string>
+    <string name="action_create">Create</string>
+
+</resources>
