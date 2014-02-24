@@ -48,7 +48,7 @@ public final class DrillPlayerFragment extends Fragment {
 		this.updateView(id);
 	}
 	
-	private void updateView(long id) {
+	public void updateView(long id) {
 		this.mLoopButton.setEnabled(false);
 		this.mPlayer = null;
 		if (0 < id) {

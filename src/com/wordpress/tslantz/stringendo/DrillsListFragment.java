@@ -4,8 +4,11 @@ import android.app.ListFragment;
 import android.app.LoaderManager.LoaderCallbacks;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
 import android.content.CursorLoader;
+import android.content.Intent;
 import android.content.Loader;
 import android.database.Cursor;
 
@@ -66,6 +69,20 @@ public final class DrillsListFragment extends ListFragment {
 			
 			}
 		);
+	}
+	
+	@Override
+	public void onListItemClick(ListView listView, View view, int position, long id) {
+		final DrillPlayerFragment player = (DrillPlayerFragment)this.getFragmentManager()
+			.findFragmentById(R.id.fragment_drill_player);
+		if (null != player && player.isVisible()) {
+			player.updateView(id);
+		} else {
+			this.startActivity(new Intent(
+				this.getActivity(),
+				DrillPlayerActivity.class
+			).putExtra(DrillTrackContract.Column.ID, id));
+		}
 	}
 	
 }

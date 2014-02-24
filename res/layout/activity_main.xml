@@ -9,7 +9,7 @@
     tools:context=".MainActivity" >
 
     <fragment
-        android:id="@+id/fragment_drills_list"
+        android:id="@+id/fragment_drill_list"
         android:name="com.wordpress.tslantz.stringendo.DrillsListFragment"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
