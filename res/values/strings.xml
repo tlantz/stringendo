@@ -11,5 +11,6 @@
     <string name="loop_button_text_off">Play</string>
     <string name="dummy_data_song">Comfortably Numb</string>
     <string name="dummy_data_drill">First Solo</string>
+    <string name="dummy_data_artist">Pink Floyd</string>
 
 </resources>
