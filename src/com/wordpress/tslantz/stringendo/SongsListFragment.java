@@ -3,11 +3,14 @@ package com.wordpress.tslantz.stringendo;
 import android.app.ListFragment;
 import android.app.LoaderManager.LoaderCallbacks;
 import android.content.CursorLoader;
+import android.content.Intent;
 import android.content.Loader;
 import android.database.Cursor;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.util.Log;
+import android.view.View;
+import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
 
 public final class SongsListFragment extends ListFragment {
@@ -73,6 +76,20 @@ public final class SongsListFragment extends ListFragment {
 			
 			}
 		);
+	}
+	
+	@Override
+	public void onListItemClick(ListView listView, View view, int position, long id) {
+		final DrillPlayerFragment player = (DrillPlayerFragment)this.getFragmentManager()
+			.findFragmentById(R.id.fragment_drill_player);
+		if (null != player && player.isVisible()) {
+			player.updateView(id);
+		} else {
+			this.startActivity(new Intent(
+				this.getActivity(),
+				DrillEditorActivity.class
+			).putExtra(DrillTrackContract.Column.ID, id));
+		}
 	}
 
 }

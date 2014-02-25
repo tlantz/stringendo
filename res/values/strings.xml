@@ -12,5 +12,10 @@
     <string name="dummy_data_song">Comfortably Numb</string>
     <string name="dummy_data_drill">First Solo</string>
     <string name="dummy_data_artist">Pink Floyd</string>
+    <string name="button_save">Save</string>
+    <string name="button_cancel">Cancel</string>
+    <string name="label_drill_name">Name</string>
+    <string name="label_start_time">Start</string>
+    <string name="label_end_time">End</string>
 
 </resources>

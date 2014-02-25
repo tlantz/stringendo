@@ -27,6 +27,8 @@ public final class Database extends SQLiteOpenHelper {
 		ddl.append("create table ").append(DrillTrackContract.TABLE).append(" (")
 			.append(DrillTrackContract.Column.ID).append(" int primary key, ")
 			.append(DrillTrackContract.Column.SONG_PATH).append(" text, ")
+			.append(DrillTrackContract.Column.SONG_NAME).append(" text, ")
+			.append(DrillTrackContract.Column.DRILL_NAME).append(" text, ")
 			.append(DrillTrackContract.Column.BEGIN_MSEC).append(" int, ")
 			.append(DrillTrackContract.Column.END_MSEC).append(" int, ")
 			.append(DrillTrackContract.Column.SLOW_FACTOR).append(" real, ")

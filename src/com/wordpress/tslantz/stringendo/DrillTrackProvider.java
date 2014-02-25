@@ -75,8 +75,7 @@ public final class DrillTrackProvider extends ContentProvider {
 		);
 		final Uri retval = (-1L == insertId) ?
 			null :
-			ContentUris.withAppendedId(uri, 
-				values.getAsLong(DrillTrackContract.Column.ID));
+			ContentUris.withAppendedId(uri, insertId);
 		this.getContext().getContentResolver().notifyChange(uri, null);
 		return retval;
 	}

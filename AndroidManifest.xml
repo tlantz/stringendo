@@ -36,6 +36,8 @@
             android:name="com.wordpress.tslantz.stringendo.DrillPlayerActivity"/>
         <activity
             android:name="com.wordpress.tslantz.stringendo.SongsListActivity"/>
+        <activity
+            android:name="com.wordpress.tslantz.stringendo.DrillEditorActivity"/>
         <provider
             android:name="com.wordpress.tslantz.stringendo.DrillTrackProvider"
             android:authorities="com.wordpress.tslantz.stringendo.DrillTrackProvider"
