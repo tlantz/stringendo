@@ -85,10 +85,11 @@ public final class SongsListFragment extends ListFragment {
 		if (null != player && player.isVisible()) {
 			player.updateView(id);
 		} else {
-			this.startActivity(new Intent(
+			this.startActivityForResult(new Intent(
 				this.getActivity(),
 				DrillEditorActivity.class
-			).putExtra(DrillTrackContract.Column.ID, id));
+			).putExtra(DrillTrackContract.Column.ID, id), 0);
+			this.getActivity().finish();
 		}
 	}
 

@@ -38,6 +38,7 @@ public final class DrillEditorActivity extends Activity {
 					DrillTrackContract.CONTENT_URI,
 					content
 				);
+				finish();
 			}
 			
 		});
