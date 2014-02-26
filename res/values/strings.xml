@@ -17,5 +17,6 @@
     <string name="label_drill_name">Name</string>
     <string name="label_start_time">Start</string>
     <string name="label_end_time">End</string>
+    <string name="button_edit">Edit</string>
 
 </resources>

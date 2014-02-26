@@ -15,8 +15,10 @@ import android.widget.ToggleButton;
 
 public final class DrillPlayerFragment extends Fragment {
 	
+	private int mEndMSec;
 	private ToggleButton mLoopButton;
 	private MediaPlayer mPlayer;
+	private int mStartMSec;
 	
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -29,6 +31,7 @@ public final class DrillPlayerFragment extends Fragment {
 				@Override
 				public void onCheckedChanged(CompoundButton button, boolean isChecked) {
 					if (isChecked) {
+						mPlayer.seekTo(mStartMSec);
 						mPlayer.start();
 					} else {
 						mPlayer.stop();
@@ -64,6 +67,10 @@ public final class DrillPlayerFragment extends Fragment {
 					Uri.parse(songPath)
 				);
 				this.mPlayer.setLooping(true);
+				this.mStartMSec = c.getInt(c.getColumnIndex(
+					DrillTrackContract.Column.BEGIN_MSEC));
+				this.mEndMSec = c.getInt(c.getColumnIndex(
+					DrillTrackContract.Column.END_MSEC));
 				this.mLoopButton.setEnabled(true);
 			}
 		}

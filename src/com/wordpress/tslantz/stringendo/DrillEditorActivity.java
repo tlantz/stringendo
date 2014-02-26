@@ -1,5 +1,8 @@
 package com.wordpress.tslantz.stringendo;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import android.app.Activity;
 import android.content.ContentUris;
 import android.content.ContentValues;
@@ -66,18 +69,36 @@ public final class DrillEditorActivity extends Activity {
 					MediaStore.Audio.Media.DATA));
 				final EditText nameBox = (EditText)findViewById(
 					R.id.text_edit_drill_name);
+				final EditText startBox = (EditText)findViewById(
+					R.id.text_edit_start_time);
+				final EditText endBox = (EditText)findViewById(
+					R.id.text_edit_end_time);
 				final ContentValues content = new ContentValues();
+				final Pattern tpat = Pattern.compile("(\\d+):(\\d+)(?:\\.(\\d+))");
+				final int startMSec = extractMSec(startBox, tpat);
+				final int endMSec = extractMSec(endBox, tpat);
 				content.put(DrillTrackContract.Column.SONG_NAME, title);
 				content.put(DrillTrackContract.Column.SONG_PATH, path);
 				content.put(DrillTrackContract.Column.DRILL_NAME,
 					nameBox.getText().toString());
 				content.put(DrillTrackContract.Column.SLOW_FACTOR, 0.10f);
 				content.put(DrillTrackContract.Column.FAST_FACTOR, 1.25f);
+				content.put(DrillTrackContract.Column.BEGIN_MSEC, startMSec);
+				content.put(DrillTrackContract.Column.END_MSEC,  endMSec);
 				getContentResolver().insert(
 					DrillTrackContract.CONTENT_URI,
 					content
 				);
 				finish();
+			}
+			
+			private int extractMSec(EditText edit, Pattern tpat) {
+				final Matcher matcher = tpat.matcher(edit.getText());				
+				final int minute = Integer.parseInt(matcher.group(1));
+				final int second = Integer.parseInt(matcher.group(2));
+				final int msec = (3 <= matcher.groupCount()) ? 
+					Integer.parseInt(matcher.group(3)) : 0;
+				return (60000 * minute) + (1000 * second) + msec;
 			}
 			
 		});
