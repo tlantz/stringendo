@@ -97,7 +97,7 @@ public final class DrillEditorActivity extends Activity {
 				if (matcher.matches()) {
 					final int minute = Integer.parseInt(matcher.group(1));
 					final int second = Integer.parseInt(matcher.group(2));
-					final int msec = (3 <= matcher.groupCount()) ? 
+					final int msec = (4 <= matcher.groupCount()) ? 
 						Integer.parseInt(matcher.group(3)) : 0;
 					return (60000 * minute) + (1000 * second) + msec;
 				} else {
