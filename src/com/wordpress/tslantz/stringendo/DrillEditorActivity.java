@@ -74,7 +74,7 @@ public final class DrillEditorActivity extends Activity {
 				final EditText endBox = (EditText)findViewById(
 					R.id.text_edit_end_time);
 				final ContentValues content = new ContentValues();
-				final Pattern tpat = Pattern.compile("(\\d+):(\\d+)(?:\\.(\\d+))");
+				final Pattern tpat = Pattern.compile("(\\d+):(\\d+)(?:\\.(\\d+)){0,1}");
 				final int startMSec = extractMSec(startBox, tpat);
 				final int endMSec = extractMSec(endBox, tpat);
 				content.put(DrillTrackContract.Column.SONG_NAME, title);
@@ -93,12 +93,16 @@ public final class DrillEditorActivity extends Activity {
 			}
 			
 			private int extractMSec(EditText edit, Pattern tpat) {
-				final Matcher matcher = tpat.matcher(edit.getText());				
-				final int minute = Integer.parseInt(matcher.group(1));
-				final int second = Integer.parseInt(matcher.group(2));
-				final int msec = (3 <= matcher.groupCount()) ? 
-					Integer.parseInt(matcher.group(3)) : 0;
-				return (60000 * minute) + (1000 * second) + msec;
+				final Matcher matcher = tpat.matcher(edit.getText());
+				if (matcher.matches()) {
+					final int minute = Integer.parseInt(matcher.group(1));
+					final int second = Integer.parseInt(matcher.group(2));
+					final int msec = (3 <= matcher.groupCount()) ? 
+						Integer.parseInt(matcher.group(3)) : 0;
+					return (60000 * minute) + (1000 * second) + msec;
+				} else {
+					return 0;
+				}
 			}
 			
 		});
