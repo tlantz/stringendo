@@ -35,6 +35,7 @@ public final class DrillPlayerFragment extends Fragment {
 						mPlayer.start();
 					} else {
 						mPlayer.stop();
+						mPlayer.reset();
 					}
 				}
 				
@@ -53,7 +54,11 @@ public final class DrillPlayerFragment extends Fragment {
 	
 	public void updateView(long id) {
 		this.mLoopButton.setEnabled(false);
+		final MediaPlayer oldmp = this.mPlayer;
 		this.mPlayer = null;
+		if (null != oldmp) {
+			oldmp.release();
+		}
 		if (0 < id) {
 			final Uri uri = ContentUris.withAppendedId(
 				DrillTrackContract.CONTENT_URI, id);
