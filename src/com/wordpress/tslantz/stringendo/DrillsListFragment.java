@@ -47,7 +47,11 @@ public final class DrillsListFragment extends ListFragment {
 						return new CursorLoader(
 							DrillsListFragment.this.getActivity(),
 							DrillTrackContract.CONTENT_URI,
-							null,
+							new String[] {
+								DrillTrackContract.Column.ID,
+								DrillTrackContract.Column.SONG_NAME,
+								DrillTrackContract.Column.DRILL_NAME
+							},
 							null,
 							null,
 							null
@@ -59,6 +63,14 @@ public final class DrillsListFragment extends ListFragment {
 				public void onLoadFinished(Loader<Cursor> loader, Cursor cursor) {
 					Log.d(DrillsListFragment.class.getCanonicalName(),
 						"loaded record count: " + cursor.getCount());
+					final DrillPlayerFragment player = (DrillPlayerFragment)
+						getFragmentManager().findFragmentById(
+							R.id.fragment_drill_player);
+					if (null != player && player.isVisible()
+						&& 0 == cursor.getCount())
+					{
+						player.updateView(-1);
+					}
 					adapter.swapCursor(cursor);
 				}
 

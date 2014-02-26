@@ -88,7 +88,7 @@ public final class SongsListFragment extends ListFragment {
 			this.startActivityForResult(new Intent(
 				this.getActivity(),
 				DrillEditorActivity.class
-			).putExtra(DrillTrackContract.Column.ID, id), 0);
+			).putExtra(MediaStore.Audio.Media._ID, id), 0);
 			this.getActivity().finish();
 		}
 	}

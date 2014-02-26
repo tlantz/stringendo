@@ -25,7 +25,7 @@ public final class Database extends SQLiteOpenHelper {
 	public void onCreate(SQLiteDatabase database) {
 		final StringBuilder ddl = new StringBuilder();
 		ddl.append("create table ").append(DrillTrackContract.TABLE).append(" (")
-			.append(DrillTrackContract.Column.ID).append(" int primary key, ")
+			.append(DrillTrackContract.Column.ID).append(" integer primary key, ")
 			.append(DrillTrackContract.Column.SONG_PATH).append(" text, ")
 			.append(DrillTrackContract.Column.SONG_NAME).append(" text, ")
 			.append(DrillTrackContract.Column.DRILL_NAME).append(" text, ")
