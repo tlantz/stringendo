@@ -1,12 +1,17 @@
 package com.wordpress.tslantz.stringendo;
 
-public final class SoundPlayer {
+public interface SoundPlayer {
 	
-	public native String getMyData();
+	Track load(String path);
 	
-	static {
-		System.loadLibrary("sndplyr");
+	public interface Track {
+		
+		void loop(int startMSec, int endMSec, double speed);
+		
+		void pause();
+		
+		void stop();
+		
 	}
-
 	
 }
