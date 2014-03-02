@@ -1,0 +1,3 @@
+[submodule "tp/jlayer"]
+	path = tp/jlayer
+	url = https://github.com/tlantz/jlayer-android-decoder.git
