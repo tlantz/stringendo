@@ -1,0 +1,3 @@
+[submodule "ext/jlayer"]
+	path = ext/jlayer
+	url = https://github.com/tlantz/jlayer-android-decoder.git
