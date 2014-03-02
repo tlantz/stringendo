@@ -14,7 +14,7 @@ import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.ToggleButton;
 
 public final class DrillPlayerFragment extends Fragment {
-	
+
 	private int mEndMSec;
 	private ToggleButton mLoopButton;
 	private MediaPlayer mPlayer;
