@@ -10,7 +10,7 @@ public interface SoundPlayer {
 	 * @param endMSec the end millisecond of the clip to play
 	 * @return a Track object that can be looped/paused/stopped
 	 */
-	Track load(String path, int startMSec, int endMSec);
+	Track load(String path, int startMSec, int endMSec) throws Exception;
 	
 	/**
 	 * Simple sound clip wrapper that supports looping with a play back speed factor

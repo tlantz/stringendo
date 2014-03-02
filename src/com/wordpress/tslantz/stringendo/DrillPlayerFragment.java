@@ -11,14 +11,17 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
+import android.widget.Toast;
 import android.widget.ToggleButton;
 
 public final class DrillPlayerFragment extends Fragment {
 
+	private final SoundPlayer mPlayer = new JLayerSoundPlayer();
+	
 	private int mEndMSec;
 	private ToggleButton mLoopButton;
-	private MediaPlayer mPlayer;
 	private int mStartMSec;
+	private SoundPlayer.Track mTrack;
 	
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container,
@@ -31,11 +34,9 @@ public final class DrillPlayerFragment extends Fragment {
 				@Override
 				public void onCheckedChanged(CompoundButton button, boolean isChecked) {
 					if (isChecked) {
-						mPlayer.seekTo(mStartMSec);
-						mPlayer.start();
+						mTrack.loop(1.0f, 5000);
 					} else {
-						mPlayer.stop();
-						mPlayer.reset();
+						mTrack.pause();
 					}
 				}
 				
@@ -54,11 +55,7 @@ public final class DrillPlayerFragment extends Fragment {
 	
 	public void updateView(long id) {
 		this.mLoopButton.setEnabled(false);
-		final MediaPlayer oldmp = this.mPlayer;
-		this.mPlayer = null;
-		if (null != oldmp) {
-			oldmp.release();
-		}
+		this.mTrack = null;
 		if (0 < id) {
 			final Uri uri = ContentUris.withAppendedId(
 				DrillTrackContract.CONTENT_URI, id);
@@ -67,16 +64,22 @@ public final class DrillPlayerFragment extends Fragment {
 			if (c.moveToFirst()) {
 				final String songPath = c.getString(c.getColumnIndex(
 					DrillTrackContract.Column.SONG_PATH));
-				this.mPlayer = MediaPlayer.create(
-					this.getActivity(), 
-					Uri.parse(songPath)
-				);
-				this.mPlayer.setLooping(true);
 				this.mStartMSec = c.getInt(c.getColumnIndex(
 					DrillTrackContract.Column.BEGIN_MSEC));
 				this.mEndMSec = c.getInt(c.getColumnIndex(
 					DrillTrackContract.Column.END_MSEC));
-				this.mLoopButton.setEnabled(true);
+				try {
+					this.mTrack = this.mPlayer.load(songPath, this.mStartMSec, 
+						this.mEndMSec);
+					this.mLoopButton.setEnabled(true);
+				} catch (Exception e) {
+					Toast.makeText(
+						this.getActivity(), 
+						"Playback failed: " + e, 
+						Toast.LENGTH_LONG
+					).show();
+				}
+				
 			}
 		}
 	}
