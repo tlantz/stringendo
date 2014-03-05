@@ -8,6 +8,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 
+import android.media.AudioFormat;
+import android.media.AudioManager;
+import android.media.AudioTrack;
+
 import javazoom.jl.decoder.Bitstream;
 import javazoom.jl.decoder.BitstreamException;
 import javazoom.jl.decoder.Decoder;
@@ -26,24 +30,73 @@ final class JLayerSoundPlayer implements SoundPlayer {
 	/**
 	 * Simple container to decode an MP3 file given a path.
 	 */
-	private static final class Track implements SoundPlayer.Track {
+	private static final class Track extends Thread
+		implements SoundPlayer.Track {
 		
+		private final int bufferSize;
 		private final int endMSec;
 		private final File file;
 		private final byte[] pcmBuffer;
 		private final int startMSec;
+		private final AudioTrack track;
 		
-		public Track(String path, int startMSec, int endMSec) throws PlaybackException, IOException {
+		private PlayState playState;
+		private int position;
+		
+		public Track(String path, int startMSec, int endMSec) 
+				throws PlaybackException, IOException {
 			this.startMSec = startMSec;
 			this.endMSec = endMSec;
 			this.file = new File(path);
 			this.pcmBuffer = this.readToPCM();
+			final int sampleRateHz = 44100;
+			bufferSize = AudioTrack.getMinBufferSize(
+				sampleRateHz, 
+				AudioFormat.CHANNEL_OUT_STEREO, 
+				AudioFormat.ENCODING_PCM_16BIT
+			);
+			this.track = new AudioTrack(
+				AudioManager.STREAM_MUSIC,
+				sampleRateHz,
+				AudioFormat.CHANNEL_OUT_STEREO,
+				AudioFormat.ENCODING_PCM_16BIT,
+				bufferSize,
+				AudioTrack.MODE_STREAM
+			);
+		}
+		
+		private static enum PlayState {
+			PAUSED,
+			PLAYING,
+			DISPOSED
+		}
+			
+		@Override
+		public void run() {
+			this.setPriority(Thread.MAX_PRIORITY);
+			track.play();
+			
+			while (PlayState.DISPOSED != playState) {
+				if (PlayState.PLAYING == playState) {
+					final int sizeLeft = (pcmBuffer.length - position);
+					if (0 == sizeLeft) {
+						playState = PlayState.PAUSED;
+					}
+					final int writeSize = sizeLeft >= bufferSize ?
+						bufferSize : sizeLeft;
+					track.write(
+						pcmBuffer,
+						position,
+						writeSize
+					);
+					position += bufferSize;
+				}
+			}
 		}
 
 		@Override
 		public void loop(float speed, int gapMSec) {
-			// TODO Auto-generated method stub
-			
+			this.playState = PlayState.PLAYING;
 		}
 
 		@Override
