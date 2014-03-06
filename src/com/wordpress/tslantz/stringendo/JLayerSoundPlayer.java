@@ -128,7 +128,6 @@ final class JLayerSoundPlayer implements SoundPlayer {
 										.decodeFrame(frame, bs);
 									final short[] codes = sb.getBuffer();
 									for (final short code : codes) {
-										Log.w("BAH", "HUMBUG " + code);
 										os.write(0xff & code); // first half of read
 										os.write(0xff & (code >> 8)); // second half
 									}
