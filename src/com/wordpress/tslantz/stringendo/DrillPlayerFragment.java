@@ -3,7 +3,6 @@ package com.wordpress.tslantz.stringendo;
 import android.app.Fragment;
 import android.content.ContentUris;
 import android.database.Cursor;
-import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -46,6 +45,16 @@ public final class DrillPlayerFragment extends Fragment {
 	}
 	
 	@Override
+	public void onDestroy() {
+		super.onDestroy();
+		SoundPlayer.Track oldTrack = this.mTrack;
+		this.mTrack = null;
+		if (null != oldTrack) {
+			oldTrack.close();
+		}
+	}
+	
+	@Override
 	public void onResume() {
 		super.onResume();
 		final long id = this.getActivity().getIntent().getLongExtra(
@@ -55,7 +64,11 @@ public final class DrillPlayerFragment extends Fragment {
 	
 	public void updateView(long id) {
 		this.mLoopButton.setEnabled(false);
+		final SoundPlayer.Track oldTrack = this.mTrack;
 		this.mTrack = null;
+		if (null != oldTrack) {
+			oldTrack.close();
+		}
 		if (0 < id) {
 			final Uri uri = ContentUris.withAppendedId(
 				DrillTrackContract.CONTENT_URI, id);

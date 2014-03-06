@@ -19,6 +19,16 @@ public interface SoundPlayer {
 	public interface Track {
 		
 		/**
+		 * Destroys a track and all of its resources. 
+		 */
+		void close();
+		
+		/**
+		 * Gets the state of the track.
+		 */
+		State getState();
+		
+		/**
 		 * Plays the track with a speed factor and a gap between loops.
 		 * @param speed the speed factor (1.0 based).
 		 * @param gapMSec the milliseconds between loops.
@@ -37,6 +47,18 @@ public interface SoundPlayer {
 		 */
 		void reset();
 		
+		/**
+		 * Represents possible states for a track.
+		 */
+		public static enum State {
+			/**
+			 * The paused state. 
+			 */
+			PAUSED,
+			/**
+			 * The playing state.
+			 */
+			PLAYING
+		}	
 	}
-	
 }

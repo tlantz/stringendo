@@ -4,13 +4,13 @@ import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
+import android.util.Log;
 
 import javazoom.jl.decoder.Bitstream;
 import javazoom.jl.decoder.BitstreamException;
@@ -30,24 +30,26 @@ final class JLayerSoundPlayer implements SoundPlayer {
 	/**
 	 * Simple container to decode an MP3 file given a path.
 	 */
-	private static final class Track extends Thread
+	private static final class Track
 		implements SoundPlayer.Track {
 		
 		private final int bufferSize;
 		private final int endMSec;
-		private final File file;
+		private final String path;
 		private final byte[] pcmBuffer;
 		private final int startMSec;
+		private TrackThread thread;
 		private final AudioTrack track;
 		
-		private PlayState playState;
+		private boolean isClosed;
+		private State playState = State.PAUSED;
 		private int position;
 		
 		public Track(String path, int startMSec, int endMSec) 
 				throws PlaybackException, IOException {
 			this.startMSec = startMSec;
 			this.endMSec = endMSec;
-			this.file = new File(path);
+			this.path = path;
 			this.pcmBuffer = this.readToPCM();
 			final int sampleRateHz = 44100;
 			bufferSize = AudioTrack.getMinBufferSize(
@@ -63,46 +65,29 @@ final class JLayerSoundPlayer implements SoundPlayer {
 				bufferSize,
 				AudioTrack.MODE_STREAM
 			);
+			this.thread = new TrackThread();
+			this.thread.start();
 		}
 		
-		private static enum PlayState {
-			PAUSED,
-			PLAYING,
-			DISPOSED
-		}
-			
 		@Override
-		public void run() {
-			this.setPriority(Thread.MAX_PRIORITY);
-			track.play();
-			
-			while (PlayState.DISPOSED != playState) {
-				if (PlayState.PLAYING == playState) {
-					final int sizeLeft = (pcmBuffer.length - position);
-					if (0 == sizeLeft) {
-						playState = PlayState.PAUSED;
-					}
-					final int writeSize = sizeLeft >= bufferSize ?
-						bufferSize : sizeLeft;
-					track.write(
-						pcmBuffer,
-						position,
-						writeSize
-					);
-					position += bufferSize;
-				}
-			}
+		public void close() {
+			this.playState = State.PAUSED;
+			this.isClosed = true;
+		}
+		
+		@Override
+		public State getState() {
+			return this.playState;
 		}
 
 		@Override
 		public void loop(float speed, int gapMSec) {
-			this.playState = PlayState.PLAYING;
+			this.playState = State.PLAYING;
 		}
 
 		@Override
 		public void pause() {
-			// TODO Auto-generated method stub
-			
+			this.playState = State.PAUSED;
 		}
 
 		@Override
@@ -121,10 +106,8 @@ final class JLayerSoundPlayer implements SoundPlayer {
 		 * @throws IOException 
 		 */
 		private byte[] readToPCM() throws PlaybackException, IOException {
-			final InputStream is = new BufferedInputStream(
-				new FileInputStream(this.file),
-				1024 << 4
-			);
+			final File file = new File(this.path); 
+			final InputStream is = new FileInputStream(file);
 			final ByteArrayOutputStream os = new ByteArrayOutputStream(1024 << 4);
 			try {
 				final Bitstream bs = new Bitstream(is);
@@ -145,6 +128,7 @@ final class JLayerSoundPlayer implements SoundPlayer {
 										.decodeFrame(frame, bs);
 									final short[] codes = sb.getBuffer();
 									for (final short code : codes) {
+										Log.w("BAH", "HUMBUG " + code);
 										os.write(0xff & code); // first half of read
 										os.write(0xff & (code >> 8)); // second half
 									}
@@ -166,6 +150,38 @@ final class JLayerSoundPlayer implements SoundPlayer {
 			} finally {
 				is.close();
 			}
+		}
+		
+		private final class TrackThread extends Thread {
+		
+			@Override
+			public void run() {
+				this.setPriority(Thread.MAX_PRIORITY);
+				while (!isClosed) {
+					if (Track.State.PLAYING == playState) {
+						if (AudioTrack.PLAYSTATE_PLAYING != track.getPlayState()) {
+							track.play();
+						}
+						final int sizeLeft = (pcmBuffer.length - position);
+						if (0 == sizeLeft) {
+							position = 0;
+						}
+						final int writeSize = sizeLeft >= bufferSize ?
+							bufferSize : sizeLeft;
+						track.write(
+							pcmBuffer,
+							position,
+							writeSize
+						);
+						position += bufferSize;
+					} else if (Track.State.PAUSED == playState) {
+						if (AudioTrack.PLAYSTATE_PLAYING == track.getPlayState()) {
+							track.pause();
+						}
+						Thread.yield();
+					}
+				}
+			}	
 		}
 	}
 }
