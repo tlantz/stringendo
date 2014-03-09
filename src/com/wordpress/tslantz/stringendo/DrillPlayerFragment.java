@@ -74,25 +74,28 @@ public final class DrillPlayerFragment extends Fragment {
 				DrillTrackContract.CONTENT_URI, id);
 			final Cursor c = this.getActivity().getContentResolver()
 				.query(uri, null, null, null, null);
-			if (c.moveToFirst()) {
-				final String songPath = c.getString(c.getColumnIndex(
-					DrillTrackContract.Column.SONG_PATH));
-				this.mStartMSec = c.getInt(c.getColumnIndex(
-					DrillTrackContract.Column.BEGIN_MSEC));
-				this.mEndMSec = c.getInt(c.getColumnIndex(
-					DrillTrackContract.Column.END_MSEC));
-				try {
-					this.mTrack = this.mPlayer.load(songPath, this.mStartMSec, 
-						this.mEndMSec);
-					this.mLoopButton.setEnabled(true);
-				} catch (Exception e) {
-					Toast.makeText(
-						this.getActivity(), 
-						"Playback failed: " + e, 
-						Toast.LENGTH_LONG
-					).show();
+			try {
+				if (c.moveToFirst()) {
+					final String songPath = c.getString(c.getColumnIndex(
+						DrillTrackContract.Column.SONG_PATH));
+					this.mStartMSec = c.getInt(c.getColumnIndex(
+						DrillTrackContract.Column.BEGIN_MSEC));
+					this.mEndMSec = c.getInt(c.getColumnIndex(
+						DrillTrackContract.Column.END_MSEC));
+					try {
+						this.mTrack = this.mPlayer.load(songPath, this.mStartMSec, 
+							this.mEndMSec);
+						this.mLoopButton.setEnabled(true);
+					} catch (Exception e) {
+						Toast.makeText(
+							this.getActivity(), 
+							"Playback failed: " + e, 
+							Toast.LENGTH_LONG
+						).show();
+					}
 				}
-				
+			} finally {
+				c.close();
 			}
 		}
 	}

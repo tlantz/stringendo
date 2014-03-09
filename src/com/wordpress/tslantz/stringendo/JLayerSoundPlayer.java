@@ -9,6 +9,7 @@ import java.io.InputStream;
 import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTrack;
+import android.util.Log;
 
 import javazoom.jl.decoder.Bitstream;
 import javazoom.jl.decoder.BitstreamException;
@@ -31,13 +32,10 @@ final class JLayerSoundPlayer implements SoundPlayer {
 	private static final class Track
 		implements SoundPlayer.Track {
 		
-		private final int bufferSize;
 		private final int endMSec;
 		private final String path;
-		private final byte[] pcmBuffer;
 		private final int startMSec;
 		private TrackThread thread;
-		private final AudioTrack track;
 		
 		private boolean isClosed;
 		private State playState = State.PAUSED;
@@ -48,21 +46,6 @@ final class JLayerSoundPlayer implements SoundPlayer {
 			this.startMSec = startMSec;
 			this.endMSec = endMSec;
 			this.path = path;
-			this.pcmBuffer = this.readToPCM();
-			final int sampleRateHz = 44100;
-			bufferSize = AudioTrack.getMinBufferSize(
-				sampleRateHz, 
-				AudioFormat.CHANNEL_OUT_STEREO, 
-				AudioFormat.ENCODING_PCM_16BIT
-			);
-			this.track = new AudioTrack(
-				AudioManager.STREAM_MUSIC,
-				sampleRateHz,
-				AudioFormat.CHANNEL_OUT_STEREO,
-				AudioFormat.ENCODING_PCM_16BIT,
-				bufferSize,
-				AudioTrack.MODE_STREAM
-			);
 			this.thread = new TrackThread();
 			this.thread.start();
 		}
@@ -71,6 +54,12 @@ final class JLayerSoundPlayer implements SoundPlayer {
 		public void close() {
 			this.playState = State.PAUSED;
 			this.isClosed = true;
+			try {
+				this.thread.join();
+			} catch (InterruptedException e) {
+				Log.e("JLayerSoundPlayer", 
+					"Playback thread join interuppted: " + e.getMessage());
+			}
 		}
 		
 		@Override
@@ -94,91 +83,137 @@ final class JLayerSoundPlayer implements SoundPlayer {
 			
 		}
 		
-		/** 
-		 * Uses the JLayer decoder to read the range required from MP3 into a PCM
-		 * buffer.
-		 * 
-		 * Based on example from: 
-		 * 
-		 *   http://mindtherobot.com/blog/624/android-audio-play-an-mp3-file-on-an-audiotrack/
-		 * @throws IOException 
-		 */
-		private byte[] readToPCM() throws PlaybackException, IOException {
-			final File file = new File(this.path); 
-			final InputStream is = new FileInputStream(file);
-			final ByteArrayOutputStream os = new ByteArrayOutputStream(1024 << 4);
-			try {
-				final Bitstream bs = new Bitstream(is);
-				final Decoder dec = new Decoder();
-				float locMSec = 0.0f;
-				while (true) {
-					try {
-						final Header frame = bs.readFrame();
-						if (null == frame) {
-							break;
-						} else {
-							locMSec += frame.ms_per_frame();
-							if (this.startMSec > locMSec) {
-								continue;
-							} else {
-								try {
-									final SampleBuffer sb = (SampleBuffer)dec
-										.decodeFrame(frame, bs);
-									final short[] codes = sb.getBuffer();
-									for (final short code : codes) {
-										os.write(0xff & code); // first half of read
-										os.write(0xff & (code >> 8)); // second half
-									}
-								} catch (DecoderException e) {
-									throw new PlaybackException(
-										"Decoding failed: " + e, e);
-								}
-								if (this.endMSec < locMSec) {
-									break;
-								}
-							}
-						}
-					} catch (BitstreamException e) {
-						throw new PlaybackException(String.format(
-							"BitstreamException: %s", e), e);
-					}
-				}
-				return os.toByteArray();
-			} finally {
-				is.close();
-			}
-		}
-		
 		private final class TrackThread extends Thread {
+			
+			private final int bufferSize;
+			private final AudioTrack track;
+			
+			private byte[] pcmBuffer;
+			
+			public TrackThread() {
+				super();
+				final int sampleRateHz = 44100;
+				this.bufferSize = AudioTrack.getMinBufferSize(
+					sampleRateHz, 
+					AudioFormat.CHANNEL_OUT_STEREO, 
+					AudioFormat.ENCODING_PCM_16BIT
+				);
+				this.track = new AudioTrack(
+					AudioManager.STREAM_MUSIC,
+					sampleRateHz,
+					AudioFormat.CHANNEL_OUT_STEREO,
+					AudioFormat.ENCODING_PCM_16BIT,
+					bufferSize,
+					AudioTrack.MODE_STREAM
+				);
+			}
 		
 			@Override
 			public void run() {
-				this.setPriority(Thread.MAX_PRIORITY);
-				while (!isClosed) {
-					if (Track.State.PLAYING == playState) {
-						if (AudioTrack.PLAYSTATE_PLAYING != track.getPlayState()) {
-							track.play();
+				this.setName("Playback [" + path + "]");
+				boolean isOkay = true;
+				try {
+					this.pcmBuffer = this.readToPCM();
+				} catch (PlaybackException e) {
+					Log.e("JLayerSoundPlayer",
+						"loading PCM data failed: " + e.getMessage());
+					isOkay = false;
+				} catch (IOException e) {
+					Log.e("JLayerSoundPlayer",
+						"IO exception while loading PCM: " + e.getMessage());
+					isOkay = false;
+				}
+				if (isOkay) {
+					this.setPriority(Thread.MAX_PRIORITY);
+					while (!isClosed) {
+						if (Track.State.PLAYING == playState) {
+							if (AudioTrack.PLAYSTATE_PLAYING != track.getPlayState()) {
+								track.play();
+							}
+							final int sizeLeft = (pcmBuffer.length - position);
+							if (0 == sizeLeft) {
+								position = 0;
+							}
+							final int writeSize = sizeLeft >= bufferSize ?
+								bufferSize : sizeLeft;
+							final int written = track.write(
+								pcmBuffer,
+								position,
+								writeSize
+							);
+							position += written;
+						} else if (Track.State.PAUSED == playState) {
+							if (AudioTrack.PLAYSTATE_PLAYING == track.getPlayState()) {
+								track.pause();
+							}
+							Thread.yield();
 						}
-						final int sizeLeft = (pcmBuffer.length - position);
-						if (0 == sizeLeft) {
-							position = 0;
-						}
-						final int writeSize = sizeLeft >= bufferSize ?
-							bufferSize : sizeLeft;
-						track.write(
-							pcmBuffer,
-							position,
-							writeSize
-						);
-						position += bufferSize;
-					} else if (Track.State.PAUSED == playState) {
-						if (AudioTrack.PLAYSTATE_PLAYING == track.getPlayState()) {
-							track.pause();
-						}
-						Thread.yield();
 					}
 				}
-			}	
+				track.stop();
+				track.release();
+			}
+			
+			/** 
+			 * Uses the JLayer decoder to read the range required from MP3 into a PCM
+			 * buffer.
+			 * 
+			 * Based on example from: 
+			 * 
+			 *   http://mindtherobot.com/blog/624/android-audio-play-an-mp3-file-on-an-audiotrack/
+			 * @throws IOException 
+			 */
+			private byte[] readToPCM() throws PlaybackException, IOException {
+				final File file = new File(path); 
+				final InputStream is = new FileInputStream(file);
+				final ByteArrayOutputStream os = new ByteArrayOutputStream(1024 << 4);
+				try {
+					final Bitstream bs = new Bitstream(is);
+					final Decoder dec = new Decoder();
+					float locMSec = 0.0f;
+					while (true) {
+						try {
+							final Header frame = bs.readFrame();
+							if (null == frame) {
+								break;
+							} else {
+								try {
+									locMSec += frame.ms_per_frame();
+									if (startMSec > locMSec) {
+										continue;
+									} else {
+										try {
+											final SampleBuffer sb = (SampleBuffer)dec
+												.decodeFrame(frame, bs);
+											final short[] codes = sb.getBuffer();
+											for (final short code : codes) {
+												// first half of read
+												os.write(0xff & code);
+												// second half
+												os.write(0xff & (code >> 8));
+											}
+										} catch (DecoderException e) {
+											throw new PlaybackException(
+												"Decoding failed: " + e, e);
+										}
+										if (endMSec < locMSec) {
+											break;
+										}
+									}
+								} finally {
+									bs.closeFrame();
+								}
+							}
+						} catch (BitstreamException e) {
+							throw new PlaybackException(String.format(
+								"BitstreamException: %s", e), e);
+						}
+					}
+					return os.toByteArray();
+				} finally {
+					is.close();
+				}
+			}
 		}
 	}
 }
