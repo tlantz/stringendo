@@ -119,8 +119,8 @@ final class JLayerSoundPlayer implements SoundPlayer {
 				this.mInputStream = new FileInputStream(file);
 				this.mBitstream = new Bitstream(this.mInputStream);
 				this.mDecoder = new Decoder();
-				this.mCurrentBuffer = new short[this.mMinBufferSize << 2];
-				this.mNextBuffer = new short[this.mMinBufferSize << 2];
+				this.mCurrentBuffer = new short[this.mMinBufferSize];
+				this.mNextBuffer = new short[this.mMinBufferSize];
 			}
 		
 			@Override
@@ -145,6 +145,7 @@ final class JLayerSoundPlayer implements SoundPlayer {
 							final short[] tempBuffer = this.mCurrentBuffer;
 							this.mCurrentBuffLen = this.mNextBuffLen;
 							this.mCurrentBuffer = this.mNextBuffer;
+							this.mCurrentPos = 0;
 							this.mNextBuffer = tempBuffer;
 							this.mNextBuffLen = this.readNextFrame(this.mNextBuffer);
 						}
