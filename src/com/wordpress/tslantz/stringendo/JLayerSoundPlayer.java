@@ -1,10 +1,8 @@
 package com.wordpress.tslantz.stringendo;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 
 import android.media.AudioFormat;
 import android.media.AudioManager;
@@ -32,30 +30,29 @@ final class JLayerSoundPlayer implements SoundPlayer {
 	private static final class Track
 		implements SoundPlayer.Track {
 		
-		private final int endMSec;
-		private final String path;
-		private final int startMSec;
-		private TrackThread thread;
+		private final int mEndMSec;
+		private final String mPath;
+		private final int mStartMSec;
+		private TrackThread mThread;
 		
-		private boolean isClosed;
-		private State playState = State.PAUSED;
-		private int position;
+		private boolean mIsClosed;
+		private State mPlayState = State.PAUSED;
 		
 		public Track(String path, int startMSec, int endMSec) 
 				throws PlaybackException, IOException {
-			this.startMSec = startMSec;
-			this.endMSec = endMSec;
-			this.path = path;
-			this.thread = new TrackThread();
-			this.thread.start();
+			this.mStartMSec = startMSec;
+			this.mEndMSec = endMSec;
+			this.mPath = path;
+			this.mThread = new TrackThread();
+			this.mThread.start();
 		}
 		
 		@Override
 		public void close() {
-			this.playState = State.PAUSED;
-			this.isClosed = true;
+			this.mPlayState = State.PAUSED;
+			this.mIsClosed = true;
 			try {
-				this.thread.join();
+				this.mThread.join();
 			} catch (InterruptedException e) {
 				Log.e("JLayerSoundPlayer", 
 					"Playback thread join interuppted: " + e.getMessage());
@@ -64,17 +61,17 @@ final class JLayerSoundPlayer implements SoundPlayer {
 		
 		@Override
 		public State getState() {
-			return this.playState;
+			return this.mPlayState;
 		}
 
 		@Override
 		public void loop(float speed, int gapMSec) {
-			this.playState = State.PLAYING;
+			this.mPlayState = State.PLAYING;
 		}
 
 		@Override
 		public void pause() {
-			this.playState = State.PAUSED;
+			this.mPlayState = State.PAUSED;
 		}
 
 		@Override
@@ -85,134 +82,140 @@ final class JLayerSoundPlayer implements SoundPlayer {
 		
 		private final class TrackThread extends Thread {
 			
-			private final int bufferSize;
-			private final AudioTrack track;
+			private final Decoder mDecoder;
+			private final FileInputStream mInputStream;
+			private final int mMinBufferSize;
+			private final AudioTrack mTrack;
 			
-			private byte[] pcmBuffer;
+			private Bitstream mBitstream;
+			private short[] mCurrentBuffer;
+			private int mCurrentPos;
+			private long mFirstFramePosition = -1L;
+			private float mLocMSec;
+			private short[] mNextBuffer;
 			
-			public TrackThread() {
+			public TrackThread() throws IOException {
 				super();
 				final int sampleRateHz = 44100;
-				this.bufferSize = AudioTrack.getMinBufferSize(
+				this.mMinBufferSize = AudioTrack.getMinBufferSize(
 					sampleRateHz, 
 					AudioFormat.CHANNEL_OUT_STEREO, 
 					AudioFormat.ENCODING_PCM_16BIT
 				);
-				this.track = new AudioTrack(
+				this.mTrack = new AudioTrack(
 					AudioManager.STREAM_MUSIC,
 					sampleRateHz,
 					AudioFormat.CHANNEL_OUT_STEREO,
 					AudioFormat.ENCODING_PCM_16BIT,
-					bufferSize,
+					mMinBufferSize,
 					AudioTrack.MODE_STREAM
 				);
+				final File file = new File(mPath); 
+				this.mInputStream = new FileInputStream(file);
+				this.mBitstream = new Bitstream(this.mInputStream);
+				this.mDecoder = new Decoder();
 			}
 		
 			@Override
 			public void run() {
-				this.setName("Playback [" + path + "]");
-				boolean isOkay = true;
+				this.setName("Playback [" + mPath + "]");
+				this.mCurrentBuffer = this.readNextFrame();
+				this.mNextBuffer = this.readNextFrame();
+				this.setPriority(Thread.MAX_PRIORITY);
+				while (!mIsClosed) {
+					if (Track.State.PLAYING == mPlayState) {
+						if (AudioTrack.PLAYSTATE_PLAYING != mTrack.getPlayState()) {
+							mTrack.play();
+						}
+						final int size = this.mCurrentBuffer.length - this.mCurrentPos;
+						final int written = this.mTrack.write(
+							this.mCurrentBuffer, 
+							this.mCurrentPos,
+							size
+						);
+						this.mCurrentPos += size;
+						if (0 == (this.mCurrentPos - written)) {
+							this.mCurrentBuffer = this.mNextBuffer;
+							this.mNextBuffer = this.readNextFrame();
+						}
+					} else if (Track.State.PAUSED == mPlayState) {
+						if (AudioTrack.PLAYSTATE_PLAYING == mTrack.getPlayState()) {
+							mTrack.pause();
+						}
+						Thread.yield();
+					}
+				}
+				this.mTrack.stop();
+				this.mTrack.release();
 				try {
-					this.pcmBuffer = this.readToPCM();
-				} catch (PlaybackException e) {
+					this.mBitstream.close();
+				} catch (BitstreamException e) {
 					Log.e("JLayerSoundPlayer",
-						"loading PCM data failed: " + e.getMessage());
-					isOkay = false;
+						"error closing bit stream: " + e.getMessage());
+				}
+				try {
+					this.mInputStream.close();
 				} catch (IOException e) {
 					Log.e("JLayerSoundPlayer",
-						"IO exception while loading PCM: " + e.getMessage());
-					isOkay = false;
+						"error closing input stream: " + e.getMessage());
 				}
-				if (isOkay) {
-					this.setPriority(Thread.MAX_PRIORITY);
-					while (!isClosed) {
-						if (Track.State.PLAYING == playState) {
-							if (AudioTrack.PLAYSTATE_PLAYING != track.getPlayState()) {
-								track.play();
-							}
-							final int sizeLeft = (pcmBuffer.length - position);
-							if (0 == sizeLeft) {
-								position = 0;
-							}
-							final int writeSize = sizeLeft >= bufferSize ?
-								bufferSize : sizeLeft;
-							final int written = track.write(
-								pcmBuffer,
-								position,
-								writeSize
-							);
-							position += written;
-						} else if (Track.State.PAUSED == playState) {
-							if (AudioTrack.PLAYSTATE_PLAYING == track.getPlayState()) {
-								track.pause();
-							}
-							Thread.yield();
-						}
-					}
-				}
-				track.stop();
-				track.release();
 			}
 			
-			/** 
-			 * Uses the JLayer decoder to read the range required from MP3 into a PCM
-			 * buffer.
-			 * 
-			 * Based on example from: 
-			 * 
-			 *   http://mindtherobot.com/blog/624/android-audio-play-an-mp3-file-on-an-audiotrack/
-			 * @throws IOException 
-			 */
-			private byte[] readToPCM() throws PlaybackException, IOException {
-				final File file = new File(path); 
-				final InputStream is = new FileInputStream(file);
-				final ByteArrayOutputStream os = new ByteArrayOutputStream(1024 << 4);
+			private short[] readNextFrame() {
+				Header frame;
 				try {
-					final Bitstream bs = new Bitstream(is);
-					final Decoder dec = new Decoder();
-					float locMSec = 0.0f;
-					while (true) {
-						try {
-							final Header frame = bs.readFrame();
-							if (null == frame) {
-								break;
-							} else {
-								try {
-									locMSec += frame.ms_per_frame();
-									if (startMSec > locMSec) {
-										continue;
-									} else {
-										try {
-											final SampleBuffer sb = (SampleBuffer)dec
-												.decodeFrame(frame, bs);
-											final short[] codes = sb.getBuffer();
-											for (final short code : codes) {
-												// first half of read
-												os.write(0xff & code);
-												// second half
-												os.write(0xff & (code >> 8));
-											}
-										} catch (DecoderException e) {
-											throw new PlaybackException(
-												"Decoding failed: " + e, e);
-										}
-										if (endMSec < locMSec) {
-											break;
-										}
-									}
-								} finally {
-									bs.closeFrame();
-								}
-							}
-						} catch (BitstreamException e) {
-							throw new PlaybackException(String.format(
-								"BitstreamException: %s", e), e);
-						}
-					}
-					return os.toByteArray();
-				} finally {
-					is.close();
+					frame = this.seekFrame();
+				} catch (BitstreamException e) {
+					Log.e("JLayerSoundPlayer",
+						"JLayer error reading frame: " + e.getMessage());
+					return null;
+				} catch (IOException e) {
+					Log.e("JLayerSoundPlayer",
+						"input error reading frame: " + e.getMessage());
+					return null;
 				}
+				try {
+					final SampleBuffer sb = (SampleBuffer)this.mDecoder
+						.decodeFrame(frame, this.mBitstream);
+					final short[] frameData = sb.getBuffer().clone();
+					this.mBitstream.closeFrame();
+					return frameData;
+				} catch (DecoderException e) {
+					Log.e("JLayerSoundPlayer",
+						"failed to decode frame: " + e.getMessage());
+					return null;
+				}
+			}
+			
+			private Header seekFrame() throws BitstreamException, IOException {
+				if (null == this.mBitstream || this.mLocMSec > mEndMSec) {
+					// we're already past the section, need to rewind the bit stream and
+					// start over
+					final Bitstream old = this.mBitstream;
+					if (0 <= this.mFirstFramePosition) {
+						this.mInputStream.getChannel().position(
+							this.mFirstFramePosition);
+					}
+					this.mBitstream = new Bitstream(this.mInputStream);
+					if (null != old) {
+						old.close();
+					}
+				}
+				Header frame;
+				while (true) {
+					frame = this.mBitstream.readFrame();
+					this.mLocMSec += frame.ms_per_frame();
+					if (mStartMSec > this.mLocMSec) {
+						break;
+					} else {
+						if (0 > this.mFirstFramePosition) {
+							this.mFirstFramePosition 
+								= this.mInputStream.getChannel().position();
+						}
+						this.mBitstream.closeFrame();
+					}
+				}
+				return frame;
 			}
 		}
 	}
