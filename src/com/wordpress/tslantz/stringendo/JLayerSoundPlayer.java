@@ -3,6 +3,7 @@ package com.wordpress.tslantz.stringendo;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.ShortBuffer;
 
 import android.media.AudioFormat;
 import android.media.AudioManager;
@@ -81,18 +82,22 @@ final class JLayerSoundPlayer implements SoundPlayer {
 		}
 		
 		private final class TrackThread extends Thread {
+
 			
 			private final Decoder mDecoder;
 			private final FileInputStream mInputStream;
 			private final int mMinBufferSize;
 			private final AudioTrack mTrack;
 			
-			private Bitstream mBitstream;
 			private short[] mCurrentBuffer;
+			private int mCurrentBuffLen;
+			private short[] mNextBuffer;
+			private int mNextBuffLen;
+			private short[] mFrameData;
+			private Bitstream mBitstream;
 			private int mCurrentPos;
 			private long mFirstFramePosition = -1L;
 			private float mLocMSec;
-			private short[] mNextBuffer;
 			
 			public TrackThread() throws IOException {
 				super();
@@ -114,20 +119,22 @@ final class JLayerSoundPlayer implements SoundPlayer {
 				this.mInputStream = new FileInputStream(file);
 				this.mBitstream = new Bitstream(this.mInputStream);
 				this.mDecoder = new Decoder();
+				this.mCurrentBuffer = new short[this.mMinBufferSize << 2];
+				this.mNextBuffer = new short[this.mMinBufferSize << 2];
 			}
 		
 			@Override
 			public void run() {
 				this.setName("Playback [" + mPath + "]");
-				this.mCurrentBuffer = this.readNextFrame();
-				this.mNextBuffer = this.readNextFrame();
+				this.mCurrentBuffLen = this.readNextFrame(this.mCurrentBuffer);
+				this.mNextBuffLen = this.readNextFrame(this.mNextBuffer);
 				this.setPriority(Thread.MAX_PRIORITY);
 				while (!mIsClosed) {
 					if (Track.State.PLAYING == mPlayState) {
 						if (AudioTrack.PLAYSTATE_PLAYING != mTrack.getPlayState()) {
 							mTrack.play();
 						}
-						final int size = this.mCurrentBuffer.length - this.mCurrentPos;
+						final int size = this.mCurrentBuffLen - this.mCurrentPos;
 						final int written = this.mTrack.write(
 							this.mCurrentBuffer, 
 							this.mCurrentPos,
@@ -135,8 +142,11 @@ final class JLayerSoundPlayer implements SoundPlayer {
 						);
 						this.mCurrentPos += size;
 						if (0 == (this.mCurrentPos - written)) {
+							final short[] tempBuffer = this.mCurrentBuffer;
+							this.mCurrentBuffLen = this.mNextBuffLen;
 							this.mCurrentBuffer = this.mNextBuffer;
-							this.mNextBuffer = this.readNextFrame();
+							this.mNextBuffer = tempBuffer;
+							this.mNextBuffLen = this.readNextFrame(this.mNextBuffer);
 						}
 					} else if (Track.State.PAUSED == mPlayState) {
 						if (AudioTrack.PLAYSTATE_PLAYING == mTrack.getPlayState()) {
@@ -161,33 +171,26 @@ final class JLayerSoundPlayer implements SoundPlayer {
 				}
 			}
 			
-			private short[] readNextFrame() {
-				Header frame;
+			private int readNextFrame(short[] dest) {
 				try {
-					frame = this.seekFrame();
+					return this.seekFrames(dest);
 				} catch (BitstreamException e) {
 					Log.e("JLayerSoundPlayer",
 						"JLayer error reading frame: " + e.getMessage());
-					return null;
+					return -1;
 				} catch (IOException e) {
 					Log.e("JLayerSoundPlayer",
 						"input error reading frame: " + e.getMessage());
-					return null;
-				}
-				try {
-					final SampleBuffer sb = (SampleBuffer)this.mDecoder
-						.decodeFrame(frame, this.mBitstream);
-					final short[] frameData = sb.getBuffer().clone();
-					this.mBitstream.closeFrame();
-					return frameData;
+					return -1;
 				} catch (DecoderException e) {
 					Log.e("JLayerSoundPlayer",
 						"failed to decode frame: " + e.getMessage());
-					return null;
+					return -1;
 				}
 			}
 			
-			private Header seekFrame() throws BitstreamException, IOException {
+			private int seekFrames(short[] dest) 
+					throws BitstreamException, IOException, DecoderException {
 				if (null == this.mBitstream || this.mLocMSec > mEndMSec) {
 					// we're already past the section, need to rewind the bit stream and
 					// start over
@@ -201,12 +204,27 @@ final class JLayerSoundPlayer implements SoundPlayer {
 						old.close();
 					}
 				}
-				Header frame;
+				final ShortBuffer sb = ShortBuffer.wrap(dest);
+				int writePos = 0;
 				while (true) {
-					frame = this.mBitstream.readFrame();
+					if (null != this.mFrameData) {
+						final int sizeLeft = dest.length - writePos;
+						final int writeSize = this.mFrameData.length;
+						if (sizeLeft >= writeSize) {
+							sb.put(this.mFrameData, 0, writeSize);
+							writePos += writeSize;
+							this.mBitstream.closeFrame();
+							this.mFrameData = null;
+						} else {
+							break;
+						}
+					}
+					final Header frame = this.mBitstream.readFrame();
 					this.mLocMSec += frame.ms_per_frame();
 					if (mStartMSec > this.mLocMSec) {
-						break;
+						final SampleBuffer smp = (SampleBuffer)this.mDecoder
+							.decodeFrame(frame, this.mBitstream);
+						this.mFrameData = smp.getBuffer();
 					} else {
 						if (0 > this.mFirstFramePosition) {
 							this.mFirstFramePosition 
@@ -215,7 +233,7 @@ final class JLayerSoundPlayer implements SoundPlayer {
 						this.mBitstream.closeFrame();
 					}
 				}
-				return frame;
+				return writePos;
 			}
 		}
 	}
